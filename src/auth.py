@@ -74,14 +74,6 @@ def login():
 
     return jsonify({'error': 'Wrong credentials'}), HTTP_401_UNAUTHORIZED
 
-
-
-
-
-
-
-
-
 @auth.get('/me')
 @jwt_required()
 def me():
@@ -92,4 +84,15 @@ def me():
     return jsonify({
         'username': user.username,
         'email': user.email
+    }),HTTP_200_OK
+
+
+@auth.post('/token/refresh')
+@jwt_required(refresh=True)
+def refrech_users_token():
+    user_id = get_jwt_identity()
+    access = create_access_token(identity=user_id)
+    
+    return jsonify({
+        'access': access
     }),HTTP_200_OK
