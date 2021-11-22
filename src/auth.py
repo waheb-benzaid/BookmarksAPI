@@ -1,8 +1,10 @@
-from flask import Blueprint,request,jsonify 
+from os import access
+from flask import Blueprint, request,jsonify 
 from werkzeug.security import check_password_hash,generate_password_hash
-from src.static.http_status_codes import HTTP_201_CREATED, HTTP_400_BAD_REQUEST,HTTP_409_CONFLICT
+from src.static.http_status_codes import HTTP_200_OK, HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED,HTTP_409_CONFLICT
 import validators
 from src.database import User,db
+from flask_jwt_extended import create_access_token,create_refresh_token,jwt_required,get_jwt_identity
 
 auth = Blueprint('auth', __name__, url_prefix='/api/v1/auth')
 
@@ -46,9 +48,48 @@ def register():
     }),HTTP_201_CREATED
 
 
-    return 'User created'
+@auth.post('/login')
+def login():
+    email = request.json.get('email', '')
+    password = request.json.get('password', '')
+
+    user = User.query.filter_by(email=email).first()
+
+    if user:
+        is_pass_correct = check_password_hash(user.password, password)
+
+        if is_pass_correct:
+            refresh = create_refresh_token(identity=user.id)
+            access = create_access_token(identity=user.id)
+
+            return jsonify({
+                'user': {
+                    'refresh': refresh,
+                    'access': access,
+                    'username': user.username,
+                    'email': user.email
+                }
+
+            }), HTTP_200_OK
+
+    return jsonify({'error': 'Wrong credentials'}), HTTP_401_UNAUTHORIZED
+
+
+
+
+
+
+
 
 
 @auth.get('/me')
+@jwt_required()
 def me():
-    return {'user': 'me'}
+    user_id = get_jwt_identity()
+
+    user = User.query.filter_by(id=user_id).first()
+
+    return jsonify({
+        'username': user.username,
+        'email': user.email
+    }),HTTP_200_OK
